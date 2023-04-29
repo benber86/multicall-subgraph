@@ -1,6 +1,6 @@
-type ExampleEntity @entity {
+type Data @entity {
   id: ID!
-  count: BigInt!
-  buyer: Bytes! # address
-  sold_id: BigInt! # uint256
+  gamma: BigInt!
+  midFee: BigInt!
+  outFee: BigInt!
 }

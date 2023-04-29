@@ -1,123 +1,56 @@
-import { BigInt } from "@graphprotocol/graph-ts"
-import {
-  CvxEth,
-  TokenExchange,
-  AddLiquidity,
-  RemoveLiquidity,
-  RemoveLiquidityOne,
-  CommitNewAdmin,
-  NewAdmin,
-  CommitNewParameters,
-  NewParameters,
-  RampAgamma,
-  StopRampA,
-  ClaimAdminFee
-} from "../generated/CvxEth/CvxEth"
-import { ExampleEntity } from "../generated/schema"
+import {BigInt, Address, ethereum, Bytes} from "@graphprotocol/graph-ts"
+import { log } from '@graphprotocol/graph-ts'
+import {Multicall, Multicall__aggregateInputCallsStruct} from "../generated/CvxEth/Multicall";
+import {AddLiquidity} from "../generated/CvxEth/CvxEth";
 
-export function handleTokenExchange(event: TokenExchange): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
+export function handleChange(event: AddLiquidity): void {
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
+  const multicall = Multicall.bind(Address.fromString('0xeefba1e63905ef1d7acba5a8513c70307c1ce441'))
+  const callingAddress = ethereum.Value.fromAddress(Address.fromString("0xb576491f1e6e5e62f1d8f26062ee822b40b0e0d4"))
 
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+  const signatures = [
+    "0x72d4f0e2", // gamma
+    "0x92526c0c", // mid_fee
+    "0xee8de675", // out_fee
+    "0x49fe9e77", // allowed_extra_profit
+    "0x72d4f0e2", // fee_gamma
+    "0x083812e5", // adjustment_step
+    "0x662b6274", // ma_half_time
+    "0xb9e8c9fd", // price_scale
+    "0x86fc88d3", // price_oracle
+    "0xc146bf94", // last_prices
+    "0x6112c747" // last_prices_timestamp
+  ]
+
+  let params: Array<ethereum.Tuple> = []
+  for (let i=0; i<signatures.length; i++) {
+    params.push(changetype<ethereum.Tuple>([callingAddress, ethereum.Value.fromBytes(Bytes.fromHexString(signatures[i]))]))
   }
-
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
-
-  // Entity fields can be set based on event parameters
-  entity.buyer = event.params.buyer
-  entity.sold_id = event.params.sold_id
-
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.token(...)
-  // - contract.coins(...)
-  // - contract.A(...)
-  // - contract.gamma(...)
-  // - contract.fee(...)
-  // - contract.get_virtual_price(...)
-  // - contract.get_dy(...)
-  // - contract.calc_token_amount(...)
-  // - contract.calc_withdraw_one_coin(...)
-  // - contract.remove_liquidity_one_coin(...)
-  // - contract.remove_liquidity_one_coin(...)
-  // - contract.lp_price(...)
-  // - contract.price_scale(...)
-  // - contract.price_oracle(...)
-  // - contract.last_prices(...)
-  // - contract.last_prices_timestamp(...)
-  // - contract.initial_A_gamma(...)
-  // - contract.future_A_gamma(...)
-  // - contract.initial_A_gamma_time(...)
-  // - contract.future_A_gamma_time(...)
-  // - contract.allowed_extra_profit(...)
-  // - contract.future_allowed_extra_profit(...)
-  // - contract.fee_gamma(...)
-  // - contract.future_fee_gamma(...)
-  // - contract.adjustment_step(...)
-  // - contract.future_adjustment_step(...)
-  // - contract.ma_half_time(...)
-  // - contract.future_ma_half_time(...)
-  // - contract.mid_fee(...)
-  // - contract.out_fee(...)
-  // - contract.admin_fee(...)
-  // - contract.future_mid_fee(...)
-  // - contract.future_out_fee(...)
-  // - contract.future_admin_fee(...)
-  // - contract.balances(...)
-  // - contract.D(...)
-  // - contract.owner(...)
-  // - contract.future_owner(...)
-  // - contract.xcp_profit(...)
-  // - contract.xcp_profit_a(...)
-  // - contract.virtual_price(...)
-  // - contract.is_killed(...)
-  // - contract.kill_deadline(...)
-  // - contract.transfer_ownership_deadline(...)
-  // - contract.admin_actions_deadline(...)
-  // - contract.admin_fee_receiver(...)
+  // need a low level call, can't call aggregate due to typing issues
+  const callResult =
+      multicall.tryCall(
+          "aggregate",
+          "aggregate((address,bytes)[]):(uint256,bytes[])",
+          [ethereum.Value.fromTupleArray(params)]
+      )
+  if (callResult.reverted) {
+    log.error("Multicall failed", [])
+    return
+  }
+  const multiResults = callResult.value[1].toBytesArray()
+  let intResults: Array<BigInt> = []
+  for (let i=0; i<multiResults.length; i++) {
+    intResults.push(ethereum.decode('uint256', multiResults[i])!.toBigInt())
+  }
+  log.warning("gamma: {}", [intResults[0].toString()])
+  log.warning("mid_fee: {}", [intResults[1].toString()])
+  log.warning("out_fee: {}", [intResults[2].toString()])
+  log.warning("allowed_extra_profit: {}", [intResults[3].toString()])
+  log.warning("fee_gamma: {}", [intResults[4].toString()])
+  log.warning("adjustment_step: {}", [intResults[5].toString()])
+  log.warning("ma_half_time: {}", [intResults[6].toString()])
+  log.warning("price_scale: {}", [intResults[7].toString()])
+  log.warning("price_oracle: {}", [intResults[8].toString()])
+  log.warning("last_prices: {}", [intResults[9].toString()])
+  log.warning("last_prices_timestamp: {}", [intResults[10].toString()])
 }
-
-export function handleAddLiquidity(event: AddLiquidity): void {}
-
-export function handleRemoveLiquidity(event: RemoveLiquidity): void {}
-
-export function handleRemoveLiquidityOne(event: RemoveLiquidityOne): void {}
-
-export function handleCommitNewAdmin(event: CommitNewAdmin): void {}
-
-export function handleNewAdmin(event: NewAdmin): void {}
-
-export function handleCommitNewParameters(event: CommitNewParameters): void {}
-
-export function handleNewParameters(event: NewParameters): void {}
-
-export function handleRampAgamma(event: RampAgamma): void {}
-
-export function handleStopRampA(event: StopRampA): void {}
-
-export function handleClaimAdminFee(event: ClaimAdminFee): void {}
