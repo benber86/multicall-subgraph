@@ -1,0 +1,53 @@
+specVersion: 0.0.1
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: CvxEth
+    network: mainnet
+    source:
+      address: "0xb576491f1e6e5e62f1d8f26062ee822b40b0e0d4"
+      abi: CvxEth
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - TokenExchange
+        - AddLiquidity
+        - RemoveLiquidity
+        - RemoveLiquidityOne
+        - CommitNewAdmin
+        - NewAdmin
+        - CommitNewParameters
+        - NewParameters
+        - RampAgamma
+        - StopRampA
+        - ClaimAdminFee
+      abis:
+        - name: CvxEth
+          file: ./abis/CvxEth.json
+      eventHandlers:
+        - event: TokenExchange(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleTokenExchange
+        - event: AddLiquidity(indexed address,uint256[2],uint256,uint256)
+          handler: handleAddLiquidity
+        - event: RemoveLiquidity(indexed address,uint256[2],uint256)
+          handler: handleRemoveLiquidity
+        - event: RemoveLiquidityOne(indexed address,uint256,uint256,uint256)
+          handler: handleRemoveLiquidityOne
+        - event: CommitNewAdmin(indexed uint256,indexed address)
+          handler: handleCommitNewAdmin
+        - event: NewAdmin(indexed address)
+          handler: handleNewAdmin
+        - event: CommitNewParameters(indexed uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleCommitNewParameters
+        - event: NewParameters(uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleNewParameters
+        - event: RampAgamma(uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleRampAgamma
+        - event: StopRampA(uint256,uint256,uint256)
+          handler: handleStopRampA
+        - event: ClaimAdminFee(indexed address,uint256)
+          handler: handleClaimAdminFee
+      file: ./src/cvx-eth.ts
